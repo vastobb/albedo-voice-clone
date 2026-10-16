@@ -1,0 +1,159 @@
+name: "Clone Voice — Albedo (XTTS v2)"
+
+run-name: "Voice clone · ${{ inputs.emotions || 'defaults' }} · ${{ inputs.languages || 'ja,en' }}"
+
+on:
+  workflow_dispatch:
+    inputs:
+      emotions:
+        description: "Emotions (comma separated)"
+        required: false
+        default: "neutral,happy,sad,angry,teasing,surprised"
+        type: string
+      seeds:
+        description: "Random seeds per emotion (comma separated)"
+        required: false
+        default: "1,2"
+        type: string
+      languages:
+        description: "Languages: ja = authentic Japanese, en = romaji reading"
+        required: false
+        default: "ja,en"
+        type: string
+      text_ja:
+        description: "Japanese text to speak"
+        required: false
+        default: "あらあら、さよなら。"
+        type: string
+      text_en:
+        description: "Romaji / English text to speak"
+        required: false
+        default: "Ara ara... sayonara."
+        type: string
+      temperature:
+        description: "Sampling temperature (higher = more varied delivery)"
+        required: false
+        default: "0.75"
+        type: string
+      repetition_penalty:
+        description: "Repetition penalty"
+        required: false
+        default: "5.0"
+        type: string
+      commit_outputs:
+        description: "Also commit the results to the 'outputs' branch"
+        required: false
+        default: true
+        type: boolean
+
+permissions:
+  contents: write
+
+concurrency:
+  group: voice-clone
+  cancel-in-progress: false
+
+jobs:
+  clone-voice:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: System audio tools (ffmpeg + rubberband)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg rubberband-cli
+          if ffmpeg -hide_banner -filters | grep -qi rubberband; then
+            echo "ffmpeg has rubberband filter"
+          else
+            echo "ffmpeg lacks rubberband filter -> rubberband CLI fallback will be used"
+          fi
+
+      - name: Cache XTTS v2 model (~1.9 GB)
+        uses: actions/cache@v4
+        with:
+          path: models/xtts-v2
+          key: xtts-v2-v1-${{ runner.os }}
+
+      - name: Python dependencies
+        run: |
+          python -m pip install --upgrade -q pip wheel
+          pip install -q torch==2.8.0 torchaudio==2.8.0 --index-url https://download.pytorch.org/whl/cpu
+          pip install -q -r requirements.txt
+
+      - name: Prepare reference clips (denoise + emotion-morphed conditioning refs)
+        run: python voice/prep_refs.py --input ref/albedo-1.mp3
+
+      - name: Download XTTS v2 model (skips when cached)
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os
+          from huggingface_hub import snapshot_download
+          path = snapshot_download(
+              "coqui/XTTS-v2",
+              local_dir="models/xtts-v2",
+              allow_patterns=["*.json", "*.pth", "*.md5"],
+              token=os.environ.get("HF_TOKEN") or None,
+          )
+          print("model at:", path)
+          PY
+
+      - name: Build generation jobs
+        run: |
+          python voice/make_jobs.py \
+            --emotions "${{ inputs.emotions }}" \
+            --seeds "${{ inputs.seeds }}" \
+            --languages "${{ inputs.languages }}" \
+            --text-ja "${{ inputs.text_ja }}" \
+            --text-en "${{ inputs.text_en }}"
+
+      - name: Generate voice candidates (XTTS v2 · CPU)
+        run: |
+          python voice/run_xtts.py --jobs work/jobs.json \
+            --temperature "${{ inputs.temperature }}" \
+            --repetition-penalty "${{ inputs.repetition_penalty }}"
+
+      - name: Speaker similarity ranking (ECAPA)
+        run: |
+          python voice/evaluate.py \
+            --files work/raw/*.wav \
+            --ref work/refs/ref_clean.wav \
+            --out work/eval_stage1.json
+
+      - name: Emotion shaping + final export
+        run: python voice/export.py
+
+      - name: Acoustic analysis report
+        run: |
+          python voice/analyze.py work/refs/ref_clean.wav > work/analysis_ref.json
+          for f in output/*/albedo_ara_sayonara_*.wav; do
+            python voice/analyze.py "$f" > "work/analysis_$(basename "$f" .wav).json"
+          done
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: albedo-voice-run${{ github.run_number }}
+          path: |
+            output/
+            work/analysis_ref.json
+          retention-days: 90
+
+      - name: Commit results to 'outputs' branch
+        if: ${{ inputs.commit_outputs }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git checkout -B outputs
+          git add -f output work/analysis_ref.json
+          git commit -m "Voice outputs (run ${{ github.run_number }})" || echo "nothing new to commit"
+          git push -f origin outputs

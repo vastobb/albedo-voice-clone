@@ -1,0 +1,7 @@
+coqui-tts
+transformers<5
+cutlet
+fugashi[unidic-lite]
+speechbrain
+soundfile
+librosa
