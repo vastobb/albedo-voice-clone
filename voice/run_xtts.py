@@ -66,7 +66,7 @@ def main():
     ap.add_argument("--temperature", type=float, default=0.7)
     ap.add_argument("--top-k", type=int, default=50)
     ap.add_argument("--top-p", type=float, default=0.85)
-    ap.add_argument("--repetition-penalty", type=float, default=8.0)
+    ap.add_argument("--repetition-penalty", type=float, default=10.0)
     args = ap.parse_args()
 
     torch.set_num_threads(os.cpu_count() or 4)

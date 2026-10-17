@@ -28,13 +28,13 @@ TARGETS = {
     "ja": "あらあら、さよなら。",
     "en": "Ara ara... sayonara.",
 }
-TOKENS = {
-    "ja": ["あら", "さよなら"],
-    "en": ["ara", "sayonara"],
+TOKEN_GROUPS = {
+    "ja": [["あら"], ["さよなら", "さようなら"]],
+    "en": [["ara"], ["sayonara"]],
 }
 KEY_WORDS = {
-    "ja": "さよなら",
-    "en": "sayonara",
+    "ja": ["さよなら", "さようなら"],
+    "en": ["sayonara"],
 }
 
 
@@ -63,8 +63,9 @@ def asr_score(transcript: str, target: str, lang: str) -> float:
     if not t or not n:
         return 0.0
     ratio = difflib.SequenceMatcher(None, t, n).ratio()
-    tokens = TOKENS.get(lang, [])
-    token_frac = sum(1 for tok in tokens if tok in t) / len(tokens) if tokens else 0.0
+    groups = TOKEN_GROUPS.get(lang, [])
+    token_frac = (sum(1 for g in groups if any(tok in t for tok in g)) / len(groups)) \
+        if groups else 0.0
     return round(0.6 * ratio + 0.4 * token_frac, 4)
 
 
@@ -73,7 +74,7 @@ def asr_pass(transcript: str, target: str, lang: str) -> bool:
     n = normalize_text(target, lang)
     if not t or not n:
         return False
-    if KEY_WORDS.get(lang, "") not in t:
+    if not any(k in t for k in KEY_WORDS.get(lang, [])):
         return False
     if len(t) > 2.2 * len(n):  # runaway repetition / rambling
         return False
@@ -147,7 +148,8 @@ def main():
             lang = guess_lang(f)
             try:
                 r = asr(f, generate_kwargs={"language": lang_name.get(lang, "japanese"),
-                                            "task": "transcribe"})
+                                            "task": "transcribe",
+                                            "num_beams": 5})
                 transcripts[f] = r["text"].strip()
             except Exception as e:  # never let ASR kill the pipeline
                 transcripts[f] = ""

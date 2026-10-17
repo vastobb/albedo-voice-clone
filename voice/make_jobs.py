@@ -8,7 +8,7 @@ import os
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--emotions", default="neutral,happy,sad,angry,teasing,surprised")
-    ap.add_argument("--seeds", default="1,2,3,4")
+    ap.add_argument("--seeds", default="1,2,3,4,5")
     ap.add_argument("--languages", default="ja,en")
     ap.add_argument("--text-ja", default="あらあら、さよなら。")
     ap.add_argument("--text-en", default="Ara ara... sayonara.")
