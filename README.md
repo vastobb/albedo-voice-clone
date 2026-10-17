@@ -43,13 +43,15 @@ For every language (`ja` = authentic Japanese, `en` = romaji reading):
 2. **Zero-shot cloning** (`voice/run_xtts.py`) — **XTTS v2** (Coqui) on CPU
    conditions on each ref variant and generates multiple seeded candidates per
    emotion/language (`temperature`, `speed`, repetition penalty per emotion).
-3. **Ranking** (`voice/evaluate.py`) — ECAPA speaker embeddings rank each
-   candidate's similarity to the reference; the best seed per emotion wins.
+3. **Ranking** (`voice/evaluate.py`) — a local **Whisper** ASR check verifies
+   each take actually says the phrase (fuzzy match with token check), then
+   **ECAPA** speaker embeddings rank the takes; the best seed per emotion wins.
 4. **Emotion shaping** (`voice/emotionize.py`) — second stage DSP per emotion:
    formant-preserving pitch/tempo shifts, shelf EQ, compressor/soft-clip
    (*angry*), loudness normalisation (EBU R128).
-5. **Export** (`voice/export.py`) — WAV/MP3/spectrograms + demo reels +
-   `summary.json`, committed to the `outputs` branch and uploaded as artifacts.
+5. **Export** (`voice/export.py`) — silence trimming (50 ms padding),
+   WAV/MP3/spectrograms + demo reels + `summary.json`, committed to the
+   `outputs` branch and uploaded as artifacts.
 
 ## 📊 Reference clip analysis (done locally with Python/NumPy + ffmpeg)
 

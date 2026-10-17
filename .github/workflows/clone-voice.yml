@@ -13,7 +13,7 @@ on:
       seeds:
         description: "Random seeds per emotion (comma separated)"
         required: false
-        default: "1,2"
+        default: "1,2,3"
         type: string
       languages:
         description: "Languages: ja = authentic Japanese, en = romaji reading"
@@ -76,11 +76,13 @@ jobs:
             echo "ffmpeg lacks rubberband filter -> rubberband CLI fallback will be used"
           fi
 
-      - name: Cache XTTS v2 model (~1.9 GB)
+      - name: Cache models (XTTS v2 + Whisper small)
         uses: actions/cache@v4
         with:
-          path: models/xtts-v2
-          key: xtts-v2-v1-${{ runner.os }}
+          path: |
+            models/xtts-v2
+            models/whisper-small
+          key: voice-models-v2-${{ runner.os }}
 
       - name: Python dependencies
         run: |
@@ -91,20 +93,20 @@ jobs:
       - name: Prepare reference clips (denoise + emotion-morphed conditioning refs)
         run: python voice/prep_refs.py --input ref/albedo-1.mp3
 
-      - name: Download XTTS v2 model (skips when cached)
+      - name: Download models (skips when cached)
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           python - <<'PY'
           import os
           from huggingface_hub import snapshot_download
-          path = snapshot_download(
-              "coqui/XTTS-v2",
-              local_dir="models/xtts-v2",
-              allow_patterns=["*.json", "*.pth", "*.md5"],
-              token=os.environ.get("HF_TOKEN") or None,
-          )
-          print("model at:", path)
+          tok = os.environ.get("HF_TOKEN") or None
+          p1 = snapshot_download("coqui/XTTS-v2", local_dir="models/xtts-v2",
+                                 allow_patterns=["*.json", "*.pth", "*.md5"], token=tok)
+          p2 = snapshot_download("openai/whisper-small", local_dir="models/whisper-small",
+                                 allow_patterns=["*.json", "*.txt", "*.safetensors"], token=tok)
+          print("xtts at:", p1)
+          print("whisper at:", p2)
           PY
 
       - name: Build generation jobs
@@ -122,14 +124,15 @@ jobs:
             --temperature "${{ inputs.temperature }}" \
             --repetition-penalty "${{ inputs.repetition_penalty }}"
 
-      - name: Speaker similarity ranking (ECAPA)
+      - name: Phrase check (Whisper ASR) + speaker similarity ranking (ECAPA)
         run: |
           python voice/evaluate.py \
             --files work/raw/*.wav \
             --ref work/refs/ref_clean.wav \
-            --out work/eval_stage1.json
+            --out work/eval_stage1.json \
+            --asr-model models/whisper-small
 
-      - name: Emotion shaping + final export
+      - name: Silence trim + emotion shaping + final export
         run: python voice/export.py
 
       - name: Acoustic analysis report
