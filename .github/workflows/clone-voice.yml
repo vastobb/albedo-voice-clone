@@ -13,7 +13,7 @@ on:
       seeds:
         description: "Random seeds per emotion (comma separated)"
         required: false
-        default: "1,2,3"
+        default: "1,2,3,4"
         type: string
       languages:
         description: "Languages: ja = authentic Japanese, en = romaji reading"
@@ -33,12 +33,12 @@ on:
       temperature:
         description: "Sampling temperature (higher = more varied delivery)"
         required: false
-        default: "0.75"
+        default: "0.7"
         type: string
       repetition_penalty:
         description: "Repetition penalty"
         required: false
-        default: "5.0"
+        default: "8.0"
         type: string
       commit_outputs:
         description: "Also commit the results to the 'outputs' branch"

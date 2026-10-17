@@ -43,9 +43,12 @@ For every language (`ja` = authentic Japanese, `en` = romaji reading):
 2. **Zero-shot cloning** (`voice/run_xtts.py`) — **XTTS v2** (Coqui) on CPU
    conditions on each ref variant and generates multiple seeded candidates per
    emotion/language (`temperature`, `speed`, repetition penalty per emotion).
-3. **Ranking** (`voice/evaluate.py`) — a local **Whisper** ASR check verifies
-   each take actually says the phrase (fuzzy match with token check), then
-   **ECAPA** speaker embeddings rank the takes; the best seed per emotion wins.
+3. **Ranking** (`voice/evaluate.py`) — a local **Whisper** ASR check scores
+   every take against the phrase (character similarity + key-word check) and
+   *passes* only takes that contain "さよなら"/"sayonara" with sane length
+   (ramble/loop rejection). Among passing takes with sane duration (0.6–7 s),
+   **ECAPA** speaker similarity picks the winner; otherwise the best ASR score
+   is used as fallback.
 4. **Emotion shaping** (`voice/emotionize.py`) — second stage DSP per emotion:
    formant-preserving pitch/tempo shifts, shelf EQ, compressor/soft-clip
    (*angry*), loudness normalisation (EBU R128).

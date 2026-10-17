@@ -2,6 +2,9 @@
 """Evaluate generated clips:
 
 1. ASR phrase check (Whisper, local) — does the take actually say the phrase?
+   - score = 0.6 * character-level similarity + 0.4 * key-token presence
+   - pass  = contains the distinctive word ("さよなら"/"sayonara"),
+             similarity >= 0.5, and no runaway repetition (length sanity)
 2. ECAPA speaker similarity vs the reference.
 3. Prosody metrics (F0, duration, peak).
 
@@ -28,6 +31,10 @@ TARGETS = {
 TOKENS = {
     "ja": ["あら", "さよなら"],
     "en": ["ara", "sayonara"],
+}
+KEY_WORDS = {
+    "ja": "さよなら",
+    "en": "sayonara",
 }
 
 
@@ -57,8 +64,20 @@ def asr_score(transcript: str, target: str, lang: str) -> float:
         return 0.0
     ratio = difflib.SequenceMatcher(None, t, n).ratio()
     tokens = TOKENS.get(lang, [])
-    hits = sum(1 for tok in tokens if tok in t) / len(tokens) if tokens else 0.0
-    return round(0.5 * ratio + 0.5 * hits, 4)
+    token_frac = sum(1 for tok in tokens if tok in t) / len(tokens) if tokens else 0.0
+    return round(0.6 * ratio + 0.4 * token_frac, 4)
+
+
+def asr_pass(transcript: str, target: str, lang: str) -> bool:
+    t = normalize_text(transcript, lang)
+    n = normalize_text(target, lang)
+    if not t or not n:
+        return False
+    if KEY_WORDS.get(lang, "") not in t:
+        return False
+    if len(t) > 2.2 * len(n):  # runaway repetition / rambling
+        return False
+    return difflib.SequenceMatcher(None, t, n).ratio() >= 0.5
 
 
 def guess_lang(path: str) -> str:
@@ -173,8 +192,10 @@ def main():
             "peak_dbfs": round(20 * np.log10(peak + 1e-12), 2),
         }
         if not args.no_asr:
+            target = TARGETS.get(lang, "")
             r["transcript"] = transcript
-            r["asr_score"] = asr_score(transcript, TARGETS.get(lang, ""), lang)
+            r["asr_score"] = asr_score(transcript, target, lang)
+            r["asr_pass"] = asr_pass(transcript, target, lang)
         results.append(r)
 
     results.sort(key=lambda x: -x["spk_sim"])
