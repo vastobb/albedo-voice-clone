@@ -81,6 +81,13 @@ def asr_pass(transcript: str, target: str, lang: str) -> bool:
     return difflib.SequenceMatcher(None, t, n).ratio() >= 0.5
 
 
+def asr_loop(transcript: str, target: str, lang: str) -> bool:
+    """Runaway repetition / rambling detector."""
+    t = normalize_text(transcript, lang)
+    n = normalize_text(target, lang)
+    return bool(t and n and len(t) > 2.2 * len(n))
+
+
 def guess_lang(path: str) -> str:
     base = os.path.basename(path)
     for lang in ("ja", "en"):
@@ -198,6 +205,7 @@ def main():
             r["transcript"] = transcript
             r["asr_score"] = asr_score(transcript, target, lang)
             r["asr_pass"] = asr_pass(transcript, target, lang)
+            r["asr_loop"] = asr_loop(transcript, target, lang)
         results.append(r)
 
     results.sort(key=lambda x: -x["spk_sim"])

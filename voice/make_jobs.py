@@ -23,8 +23,20 @@ def main():
     jobs = []
     for lang in langs:
         for emo in emotions:
-            jobs.append({"emotion": emo, "lang": lang, "seeds": seeds,
-                         "text": texts.get(lang, "")})
+            job = {"emotion": emo, "lang": lang, "seeds": seeds,
+                   "text": texts.get(lang, "")}
+            if emo in ("neutral", "sad"):
+                # loudness-normalised conditioning helps stability for these
+                job["sound_norm"] = True
+            jobs.append(job)
+
+    # Extra diversity for the two loop-prone emotions: raw (uncleaned) reference
+    # and a shortened seed list, ja only.
+    for emo in ("neutral", "sad"):
+        if emo in emotions and "ja" in langs:
+            jobs.append({"emotion": emo, "lang": "ja", "seeds": seeds[:3],
+                         "text": texts.get("ja", ""),
+                         "ref": "ref_raw.wav", "tag": "raw"})
 
     os.makedirs(os.path.dirname(args.out) or ".", exist_ok=True)
     with open(args.out, "w") as f:

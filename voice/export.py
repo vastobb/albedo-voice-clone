@@ -47,8 +47,11 @@ def pick_best(cands):
              if c.get("asr_pass") and MIN_DUR <= c["dur_s"] <= MAX_DUR]
     if valid:
         return max(valid, key=lambda c: c["sim"]), "valid"
-    fallback = [c for c in cands if MIN_DUR <= c["dur_s"] <= MAX_DUR] or cands
-    return max(fallback, key=lambda c: ((c.get("asr") or 0.0), c["sim"])), "fallback"
+    sane = [c for c in cands if MIN_DUR <= c["dur_s"] <= MAX_DUR]
+    pool = sane or cands
+    nonloop = [c for c in pool if not c.get("loop")]
+    pool = nonloop or pool
+    return max(pool, key=lambda c: ((c.get("asr") or 0.0), c["sim"])), "fallback"
 
 
 def main():
@@ -85,6 +88,7 @@ def main():
                 "sim": r.get("spk_sim", 0.0),
                 "asr": r.get("asr_score"),
                 "asr_pass": bool(r.get("asr_pass", False)),
+                "loop": bool(r.get("asr_loop", False)),
                 "transcript": r.get("transcript", ""),
                 "seed": g["seed"],
                 "dur_s": g["dur_s"],

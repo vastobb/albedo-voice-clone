@@ -31,7 +31,7 @@ LANG_TEXT = {
 }
 
 EMO_SPEED = {
-    "neutral": 1.0, "happy": 1.06, "sad": 0.9,
+    "neutral": 1.03, "happy": 1.06, "sad": 0.95,
     "angry": 1.05, "teasing": 0.95, "surprised": 1.1,
 }
 
@@ -64,8 +64,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--jobs", required=True)
     ap.add_argument("--temperature", type=float, default=0.7)
-    ap.add_argument("--top-k", type=int, default=50)
-    ap.add_argument("--top-p", type=float, default=0.85)
+    ap.add_argument("--top-k", type=int, default=40)
+    ap.add_argument("--top-p", type=float, default=0.8)
     ap.add_argument("--repetition-penalty", type=float, default=10.0)
     args = ap.parse_args()
 
