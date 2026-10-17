@@ -1,0 +1,37 @@
+{
+ "file": "work/refs/ref_clean.wav",
+ "sr": 44100,
+ "channels": 1,
+ "duration_s": 4.963,
+ "peak_dbfs": -2.89,
+ "rms_dbfs": -17.81,
+ "crest_db": 14.92,
+ "rms_env_db": {
+  "max": -12.6,
+  "p50": -19.2,
+  "p10": -39.4
+ },
+ "silence_ratio_pct": 4.1,
+ "energy_peaks": 34,
+ "approx_peaks_per_s": 6.85,
+ "f0_hz": {
+  "n_voiced_frames": 424,
+  "voiced_ratio_pct": 88.3,
+  "mean": 370.6,
+  "median": 411.2,
+  "p5": 170.4,
+  "p95": 501.1
+ },
+ "spectral": {
+  "centroid_mean_hz": 3450.9,
+  "flatness_mean": 0.0655,
+  "band_energy_frac": {
+   "0-150": 0.0005,
+   "150-400": 0.0363,
+   "400-1k": 0.3985,
+   "1k-4k": 0.4321,
+   "4k-8k": 0.0633,
+   "8k+": 0.0637
+  }
+ }
+}
